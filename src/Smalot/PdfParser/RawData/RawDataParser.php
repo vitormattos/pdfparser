@@ -169,7 +169,7 @@ class RawDataParser
         // initialize object number
         $obj_num = 0;
         // search for cross-reference entries or subsection
-        while (preg_match('/([0-9]+)[\x20]([0-9]+)[\x20]?([nf]?)(\r\n|[\x20]?[\r\n])/', $pdfData, $matches, \PREG_OFFSET_CAPTURE, $offset) > 0) {
+        while (preg_match('/([0-9]+)[\x20]+([0-9]+)[\x20]*([nf]?)(\r\n|[\x20]*[\r\n])/', $pdfData, $matches, \PREG_OFFSET_CAPTURE, $offset) > 0) {
             if ($matches[0][1] != $offset) {
                 // we are on another section
                 break;
@@ -198,16 +198,16 @@ class RawDataParser
                 // get only the last updated version
                 $xref['trailer'] = [];
                 // parse trailer_data
-                if (preg_match('/Size[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/\/Size[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['size'] = (int) $matches[1];
                 }
-                if (preg_match('/Root[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/\/Root[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['root'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
-                if (preg_match('/Encrypt[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/\/Encrypt[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['encrypt'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
-                if (preg_match('/Info[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/\/Info[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['info'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
                 if (preg_match('/ID[\s]*[\[][\s]*[<]([^>]*)[>][\s]*[<]([^>]*)[>]/i', $trailer_data, $matches) > 0) {
@@ -216,7 +216,7 @@ class RawDataParser
                     $xref['trailer']['id'][1] = $matches[2];
                 }
             }
-            if (preg_match('/Prev[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
+            if (preg_match('/\/Prev[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
                 $offset = (int) $matches[1];
                 if (0 != $offset) {
                     // get previous xref
@@ -246,7 +246,28 @@ class RawDataParser
     {
         // try to read Cross-Reference Stream
         $xrefobj = $this->getRawObject($pdfData, $startxref);
-        $xrefcrs = $this->getIndirectObject($pdfData, $xref, $xrefobj[1], $startxref, true);
+        $xrefObjRef = isset($xrefobj[1]) && \is_string($xrefobj[1]) ? $xrefobj[1] : '';
+        $xrefObjOffset = $startxref;
+
+        // Some malformed files have a startxref that points near the xref stream object.
+        // Try to recover a nearby valid object header instead of failing hard.
+        if (0 === preg_match('/^[0-9]+_[0-9]+$/', $xrefObjRef)) {
+            if (
+                preg_match('/([0-9]+)[\x20]+([0-9]+)[\x20]+obj/i', $pdfData, $matches, \PREG_OFFSET_CAPTURE, $startxref) > 0
+                && ($matches[0][1] - $startxref) <= 64
+            ) {
+                $xrefObjRef = (int) $matches[1][0].'_'.(int) $matches[2][0];
+                $xrefObjOffset = $matches[0][1];
+            }
+        }
+
+        if (0 === preg_match('/^[0-9]+_[0-9]+$/', $xrefObjRef)) {
+            // Could not resolve a valid xref stream object reference at this offset.
+            // Keep already collected xref data instead of aborting parsing.
+            return $xref;
+        }
+
+        $xrefcrs = $this->getIndirectObject($pdfData, $xref, $xrefObjRef, $xrefObjOffset, true);
         if (!isset($xref['trailer']) || empty($xref['trailer'])) {
             // get only the last updated version
             $xref['trailer'] = [];
@@ -513,7 +534,7 @@ class RawDataParser
     protected function getObjectHeaderPattern(array $objRefs): string
     {
         // consider all whitespace character (PDF specifications)
-        return '/'.$objRefs[0].$this->config->getPdfWhitespacesRegex().$objRefs[1].$this->config->getPdfWhitespacesRegex().'obj/';
+        return '/'.$objRefs[0].$this->config->getPdfWhitespacesRegex().'+'.$objRefs[1].$this->config->getPdfWhitespacesRegex().'+obj/';
     }
 
     protected function getObjectHeaderLen(array $objRefs): int
@@ -546,6 +567,7 @@ class RawDataParser
             throw new \Exception('Invalid object reference for $obj.');
         }
 
+        $objHeaderPattern = $this->getObjectHeaderPattern($objRefArr);
         $objHeaderLen = $this->getObjectHeaderLen($objRefArr);
 
         /*
@@ -555,9 +577,27 @@ class RawDataParser
         $offset += strspn($pdfData, $this->config->getPdfWhitespaces(), $offset);
         // ignore leading zeros for object number
         $offset += strspn($pdfData, '0', $offset);
-        if (0 == preg_match($this->getObjectHeaderPattern($objRefArr), substr($pdfData, $offset, $objHeaderLen))) {
-            // an indirect reference to an undefined object shall be considered a reference to the null object
-            return ['null', 'null', $offset];
+        if (0 == preg_match($objHeaderPattern, substr($pdfData, $offset, 33), $headerMatches)) {
+            // Some malformed files have slightly inaccurate xref offsets.
+            // Try to recover by locating the expected object header nearby.
+            $searchStart = max(0, $offset - 64);
+            $searchLen = 192;
+            if (
+                preg_match(
+                    $objHeaderPattern,
+                    substr($pdfData, $searchStart, $searchLen),
+                    $headerMatches,
+                    \PREG_OFFSET_CAPTURE
+                ) > 0
+            ) {
+                $offset = $searchStart + $headerMatches[0][1];
+                $objHeaderLen = \strlen($headerMatches[0][0]);
+            } else {
+                // an indirect reference to an undefined object shall be considered a reference to the null object
+                return ['null', 'null', $offset];
+            }
+        } else {
+            $objHeaderLen = \strlen($headerMatches[0]);
         }
 
         /*
@@ -607,11 +647,15 @@ class RawDataParser
             if (isset($this->objects[$obj[1]])) {
                 // this object has been already parsed
                 return $this->objects[$obj[1]];
-            } elseif (isset($xref[$obj[1]])) {
+            } elseif (isset($xref[$obj[1]]) && $xref[$obj[1]] > 0) {
                 // parse new object
                 $this->objects[$obj[1]] = $this->getIndirectObject($pdfData, $xref, $obj[1], $xref[$obj[1]], false);
 
                 return $this->objects[$obj[1]];
+            } elseif (isset($xref[$obj[1]]) && $xref[$obj[1]] <= 0) {
+                // Compressed object references are resolved later from object streams in Parser::parseObject().
+                // At raw parsing stage, treat unresolved references as null instead of throwing.
+                return ['null', 'null', 0];
             }
         }
 
@@ -922,19 +966,27 @@ class RawDataParser
             throw new \Exception('Unable to find xref (PDF corrupted?)');
         }
 
+        // Some files point startxref to the whitespace right before the xref keyword or stream object.
+        $startxrefOffset = $startxref + strspn($pdfData, $this->config->getPdfWhitespaces(), $startxref);
+        // Be tolerant if startxref points one byte into the xref keyword ("ref").
+        if ($startxrefOffset > 0 && strpos($pdfData, 'xref', $startxrefOffset - 1) == $startxrefOffset - 1) {
+            --$startxrefOffset;
+        }
+
         // check xref position
-        if (strpos($pdfData, 'xref', $startxref) == $startxref) {
+        if (strpos($pdfData, 'xref', $startxrefOffset) == $startxrefOffset) {
             // Cross-Reference
-            $xref = $this->decodeXref($pdfData, $startxref, $xref, $visitedOffsets);
+            $xref = $this->decodeXref($pdfData, $startxrefOffset, $xref, $visitedOffsets);
         } else {
             // Check if the $pdfData might have the wrong line-endings
             $pdfDataUnix = str_replace("\r\n", "\n", $pdfData);
-            if ($startxref < \strlen($pdfDataUnix) && strpos($pdfDataUnix, 'xref', $startxref) == $startxref) {
+            $startxrefUnixOffset = $startxref + strspn($pdfDataUnix, $this->config->getPdfWhitespaces(), $startxref);
+            if ($startxrefUnixOffset < \strlen($pdfDataUnix) && strpos($pdfDataUnix, 'xref', $startxrefUnixOffset) == $startxrefUnixOffset) {
                 // Return Unix-line-ending flag
                 $xref = ['Unix' => true];
             } else {
                 // Cross-Reference Stream
-                $xref = $this->decodeXrefStream($pdfData, $startxref, $xref, $visitedOffsets);
+                $xref = $this->decodeXrefStream($pdfData, $startxrefOffset, $xref, $visitedOffsets);
             }
         }
         if (empty($xref)) {
@@ -964,8 +1016,9 @@ class RawDataParser
             throw new MissingPdfHeaderException('Invalid PDF data: Missing `%PDF-` header.');
         }
 
-        // get PDF content string
-        $pdfData = $trimpos > 0 ? substr($data, $trimpos) : $data;
+        // Keep the original byte layout to preserve absolute xref offsets.
+        // Some PDFs contain bytes before %PDF- and xref offsets still target the full file.
+        $pdfData = $data;
 
         // get xref and trailer data
         $xref = $this->getXrefData($pdfData);

@@ -36,7 +36,6 @@
 namespace PHPUnitTests\Integration;
 
 use PHPUnitTests\TestCase;
-use Smalot\PdfParser\Document;
 use Smalot\PdfParser\Parser;
 
 /**
@@ -110,5 +109,69 @@ class DocumentIssueFocusTest extends TestCase
         // as well as removing \r line-feeds
         $testSubject = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ŁŒŠŸŽıłœšž';
         self::assertStringContainsString($testSubject, $details['Subject']);
+    }
+
+    /**
+     * @see https://github.com/smalot/pdfparser/pull/795
+     */
+    public function testGetPagesDeduplicatesDuplicateKidsFixture(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestDuplicateKids.pdf');
+
+        $pages = $document->getPages();
+
+        self::assertCount(1, $pages);
+    }
+
+    public function testParseFileWithCompressedObjRefInXrefStream(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestInvalidObjectReference.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenStartxrefPointsToLeadingWhitespaceInXrefStream(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestStartxrefWhitespaceXrefStream.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenStartxrefPointsNearXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest794.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenStartxrefPointsToLeadingWhitespaceInVeraPdfFixture(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-vera.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    /**
+     * @see https://github.com/smalot/pdfparser/pull/797
+     */
+    public function testParseFileWithCompressedXrefObjectFromPdfJsCorpus(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWithXrefSubsectionHavingMultipleSpaces(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestXrefSubsectionMultipleSpaces.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenObjectHeaderIsNearXrefOffset(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestNearbyObjectHeaderOffset.pdf');
+
+        self::assertCount(1, $document->getPages());
     }
 }
