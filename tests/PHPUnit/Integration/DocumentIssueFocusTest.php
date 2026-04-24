@@ -143,7 +143,7 @@ class DocumentIssueFocusTest extends TestCase
     public function testParseFileWithCompressedXrefObjectFromPdfJsCorpus(): void
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-pdf.js.pdf');
- 
+
         self::assertCount(1, $document->getPages());
     }
 
@@ -157,6 +157,13 @@ class DocumentIssueFocusTest extends TestCase
     public function testParseFileWhenStartxrefPointsNearXrefKeyword(): void
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest794.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWithXrefSubsectionHavingMultipleSpaces(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestXrefSubsectionMultipleSpaces.pdf');
 
         self::assertCount(1, $document->getPages());
     }
