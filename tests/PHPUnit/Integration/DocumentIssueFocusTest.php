@@ -119,6 +119,13 @@ class DocumentIssueFocusTest extends TestCase
         self::assertCount(1, $document->getPages());
     }
 
+    public function testParseFileWhenStartxrefPointsBeforeXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-startxref-misaligned.pdf');
+
+        self::assertCount(5, $document->getPages());
+    }
+
     /**
      * @see https://github.com/smalot/pdfparser/pull/795
      */
