@@ -160,4 +160,11 @@ class DocumentIssueFocusTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    public function testParseFileWithXrefSubsectionHavingMultipleSpaces(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestXrefSubsectionMultipleSpaces.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
