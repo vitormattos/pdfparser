@@ -351,4 +351,11 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    public function testParseFileWithCommentsInsideXrefTable(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest805-pdf.js.pdf');
+
+        self::assertCount(3, $document->getPages());
+    }
 }
