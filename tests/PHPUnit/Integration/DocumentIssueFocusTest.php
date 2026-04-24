@@ -112,9 +112,9 @@ class DocumentIssueFocusTest extends TestCase
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
 
-    public function testParseFileWithoutStartxrefButWithTrailerRoot(): void
+    public function testParseFileWhenStartxrefPointsNearXrefKeyword(): void
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest809-pdf.js.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest794.pdf');
 
         self::assertCount(1, $document->getPages());
     }
