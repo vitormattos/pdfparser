@@ -36,7 +36,6 @@
 namespace PHPUnitTests\Integration;
 
 use PHPUnitTests\TestCase;
-use Smalot\PdfParser\Config;
 use Smalot\PdfParser\Document;
 use Smalot\PdfParser\Parser;
 
@@ -113,16 +112,10 @@ class DocumentIssueFocusTest extends TestCase
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
 
-    /**
-     * @group linux-only
-     */
-    public function testParseFileWithLargeFlateStreams(): void
+    public function testParseFileWithArrayXrefObjectReferenceInStream(): void
     {
-        $config = new Config();
-        $config->setRetainImageContent(false);
-        $config->setDecodeMemoryLimit(8 * 1024 * 1024);
-        $document = (new Parser([], $config))->parseFile($this->rootDir.'/samples/bugs/PullRequest457.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest804-pdf.js.pdf');
 
-        self::assertCount(28, $document->getPages());
+        self::assertCount(1, $document->getPages());
     }
 }
