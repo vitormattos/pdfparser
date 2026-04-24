@@ -177,6 +177,13 @@ class DocumentIssueFocusTest extends TestCase
         self::assertCount(1, $document->getPages());
     }
 
+    public function testParseFileWithArrayXrefObjectReferenceInStream(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest804-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
     /**
      * @group linux-only
      */
