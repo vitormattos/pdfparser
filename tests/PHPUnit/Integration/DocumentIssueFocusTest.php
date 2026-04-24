@@ -191,6 +191,13 @@ class DocumentIssueFocusTest extends TestCase
         self::assertCount(3, $document->getPages());
     }
 
+    public function testParseFileWithCyclicPagesTree(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest806-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
     /**
      * @group linux-only
      */
