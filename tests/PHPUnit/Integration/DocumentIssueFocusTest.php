@@ -198,6 +198,13 @@ class DocumentIssueFocusTest extends TestCase
         self::assertCount(1, $document->getPages());
     }
 
+    public function testParseFileWithXrefTableMissingXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
     /**
      * @group linux-only
      */
