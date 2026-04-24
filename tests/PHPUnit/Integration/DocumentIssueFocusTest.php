@@ -112,6 +112,12 @@ class DocumentIssueFocusTest extends TestCase
         $testSubject = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ŁŒŠŸŽıłœšž';
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
+    public function testParseFileWithXrefTableMissingXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-missing-keyword.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 
     /**
      * @see https://github.com/smalot/pdfparser/pull/795
