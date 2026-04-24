@@ -331,6 +331,9 @@ class RawDataParserTest extends TestCase
         yield 'pr797 pdf.js xref stream fixture' => [
             'rawdata/PullRequest797-pdf.js.pdf',
         ];
+        yield 'pr799 xref subsection with multiple spaces' => [
+            'rawdata/PullRequestXrefSubsectionMultipleSpaces.pdf',
+        ];
     }
 
     /**
