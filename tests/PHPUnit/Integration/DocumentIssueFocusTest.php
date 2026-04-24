@@ -111,6 +111,7 @@ class DocumentIssueFocusTest extends TestCase
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
 
+<<<<<<< HEAD
     /**
      * @see https://github.com/smalot/pdfparser/pull/795
      */
@@ -164,6 +165,13 @@ class DocumentIssueFocusTest extends TestCase
     public function testParseFileWithXrefSubsectionHavingMultipleSpaces(): void
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestXrefSubsectionMultipleSpaces.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenObjectHeaderIsNearXrefOffset(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestNearbyObjectHeaderOffset.pdf');
 
         self::assertCount(1, $document->getPages());
     }
