@@ -348,4 +348,24 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    /**
+     * @see https://github.com/smalot/pdfparser/pull/798
+     */
+    public function testParseFileWhenStartxrefPointsToLeadingWhitespaceInXrefStream(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestStartxrefWhitespaceXrefStream.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    /**
+     * @see https://github.com/smalot/pdfparser/pull/798
+     */
+    public function testParseFileWhenStartxrefPointsNearXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest794.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
