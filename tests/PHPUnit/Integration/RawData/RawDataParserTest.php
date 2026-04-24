@@ -337,6 +337,9 @@ class RawDataParserTest extends TestCase
         yield 'pr800 object header with multiple spaces (nearby xref offset)' => [
             'rawdata/PullRequestNearbyObjectHeaderOffset.pdf',
         ];
+        yield 'pr804 pdf.js issue17147 hybrid xref offsets' => [
+            'rawdata/PullRequest804-pdf.js.pdf',
+        ];
     }
 
     /**

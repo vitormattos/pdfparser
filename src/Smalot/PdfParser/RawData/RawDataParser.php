@@ -216,6 +216,12 @@ class RawDataParser
                     $xref['trailer']['id'][1] = $matches[2];
                 }
             }
+            if (preg_match('/XRefStm[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
+                $xrefStmOffset = (int) $matches[1];
+                if (0 != $xrefStmOffset) {
+                    $xref = $this->decodeXrefStream($pdfData, $xrefStmOffset, $xref, $visitedOffsets);
+                }
+            }
             if (preg_match('/\/Prev[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
                 $offset = (int) $matches[1];
                 if (0 != $offset) {
@@ -262,6 +268,25 @@ class RawDataParser
         }
 
         if (0 === preg_match('/^[0-9]+_[0-9]+$/', $xrefObjRef)) {
+            if (
+                preg_match('/trailer[\s]*<<(.*)>>/isU', $pdfData, $matches, \PREG_OFFSET_CAPTURE, $startxref) > 0
+                && $matches[0][1] <= $startxref
+            ) {
+                $trailerData = $matches[1][0];
+                if (preg_match('/XRefStm[\s]+([0-9]+)/i', $trailerData, $stmMatches) > 0) {
+                    $stmOffset = (int) $stmMatches[1];
+                    if (0 != $stmOffset) {
+                        $xref = $this->decodeXrefStream($pdfData, $stmOffset, $xref, $visitedOffsets);
+                    }
+                }
+                if (preg_match('/Prev[\s]+([0-9]+)/i', $trailerData, $prevMatches) > 0) {
+                    $prevOffset = (int) $prevMatches[1];
+                    if (0 != $prevOffset) {
+                        $xref = $this->getXrefData($pdfData, $prevOffset, $xref, $visitedOffsets);
+                    }
+                }
+            }
+
             // Could not resolve a valid xref stream object reference at this offset.
             // Keep already collected xref data instead of aborting parsing.
             return $xref;
@@ -1002,6 +1027,19 @@ class RawDataParser
             throw new \Exception('Unable to find xref (PDF corrupted?)');
         }
 
+        // Some malformed files point startxref a few bytes after the xref keyword.
+        $nearXrefWindowStart = max(0, $startxref - 64);
+        $nearXrefWindowLength = $startxref - $nearXrefWindowStart + 8;
+        if ($nearXrefWindowLength > 0) {
+            $nearXrefChunk = substr($pdfData, $nearXrefWindowStart, $nearXrefWindowLength);
+            $nearXrefPos = strrpos($nearXrefChunk, 'xref');
+            if (false !== $nearXrefPos) {
+                $nearXrefOffset = $nearXrefWindowStart + $nearXrefPos;
+                if ($nearXrefOffset <= $startxref && preg_match('/xref[\x09\x0a\x0c\x0d\x20]/', substr($pdfData, $nearXrefOffset, 5)) > 0) {
+                    $startxref = $nearXrefOffset;
+                }
+            }
+        }
         // Some files point startxref to the whitespace right before the xref keyword or stream object.
         $startxrefOffset = $startxref + strspn($pdfData, $this->config->getPdfWhitespaces(), $startxref);
         // Be tolerant if startxref points one byte into the xref keyword ("ref").
