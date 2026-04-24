@@ -379,4 +379,11 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    public function testParseFileWhenStartxrefPointsNearXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest794.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
