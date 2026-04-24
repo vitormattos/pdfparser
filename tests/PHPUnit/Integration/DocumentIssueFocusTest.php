@@ -112,10 +112,10 @@ class DocumentIssueFocusTest extends TestCase
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
 
-    public function testParseFileWithArrayXrefObjectReferenceInStream(): void
+    public function testParseFileWithCommentsInsideXrefTable(): void
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest804-pdf.js.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest805-pdf.js.pdf');
 
-        self::assertCount(1, $document->getPages());
+        self::assertCount(3, $document->getPages());
     }
 }
