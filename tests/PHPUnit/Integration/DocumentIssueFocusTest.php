@@ -167,4 +167,11 @@ class DocumentIssueFocusTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    public function testParseFileWhenObjectHeaderIsNearXrefOffset(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestNearbyObjectHeaderOffset.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
