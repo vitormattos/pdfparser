@@ -262,6 +262,16 @@ class DocumentTest extends TestCase
     }
 
     /**
+     * @see https://github.com/smalot/pdfparser/pull/795
+     */
+    public function testGetPagesDeduplicatesDuplicateKidsFixture(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestDuplicateKids.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    /**
      * @see https://github.com/smalot/pdfparser/issues/721
      */
     public function testExtractXMPMetadataIssue721(): void
