@@ -947,8 +947,12 @@ class RawDataParser
             throw new \Exception('Unable to find xref (PDF corrupted?)');
         }
 
-        // Some files point startxref to the whitespace right before the xref keyword.
+        // Some files point startxref to the whitespace right before the xref keyword or stream object.
         $startxrefOffset = $startxref + strspn($pdfData, $this->config->getPdfWhitespaces(), $startxref);
+        // Be tolerant if startxref points one byte into the xref keyword ("ref").
+        if ($startxrefOffset > 0 && strpos($pdfData, 'xref', $startxrefOffset - 1) == $startxrefOffset - 1) {
+            --$startxrefOffset;
+        }
 
         // check xref position
         if (strpos($pdfData, 'xref', $startxrefOffset) == $startxrefOffset) {
@@ -963,7 +967,7 @@ class RawDataParser
                 $xref = ['Unix' => true];
             } else {
                 // Cross-Reference Stream
-                $xref = $this->decodeXrefStream($pdfData, $startxref, $xref, $visitedOffsets);
+                $xref = $this->decodeXrefStream($pdfData, $startxrefOffset, $xref, $visitedOffsets);
             }
         }
         if (empty($xref)) {
