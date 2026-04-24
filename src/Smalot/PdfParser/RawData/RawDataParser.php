@@ -847,7 +847,9 @@ class RawDataParser
 
                         // we get stream length here to later help preg_match test less data
                         $streamLen = (int) $this->getHeaderValue($headerDic, 'Length', 'numeric', 0);
-                        $skip = false === $this->config->getRetainImageContent() && 'XObject' == $this->getHeaderValue($headerDic, 'Type', '/') && 'Image' == $this->getHeaderValue($headerDic, 'Subtype', '/');
+                        $skip = (false === $this->config->getRetainImageContent() || $this->shouldSkipImageStreamContent($headerDic))
+                            && 'XObject' == $this->getHeaderValue($headerDic, 'Type', '/')
+                            && 'Image' == $this->getHeaderValue($headerDic, 'Subtype', '/');
 
                         $pregResult = preg_match(
                             '/(endstream)[\x09\x0a\x0c\x0d\x20]/isU',
@@ -886,6 +888,40 @@ class RawDataParser
         }
 
         return [$objtype, $objval, $offset];
+    }
+
+    private function shouldSkipImageStreamContent(?array $headerDic): bool
+    {
+        if (false === \is_array($headerDic)) {
+            return false;
+        }
+
+        $memoryLimit = $this->getMemoryLimitBytes();
+        if ($memoryLimit <= 0) {
+            return false;
+        }
+
+        if ('XObject' != $this->getHeaderValue($headerDic, 'Type', '/') || 'Image' != $this->getHeaderValue($headerDic, 'Subtype', '/')) {
+            return false;
+        }
+
+        if ($memoryLimit <= (256 * 1024 * 1024)) {
+            return true;
+        }
+
+        return memory_get_usage(true) >= (int) floor($memoryLimit * 0.8);
+    }
+
+    private function getMemoryLimitBytes(): int
+    {
+        static $memoryLimit = null;
+        if (null !== $memoryLimit) {
+            return $memoryLimit;
+        }
+
+        $memoryLimit = MemoryLimit::toBytes((string) ini_get('memory_limit'));
+
+        return $memoryLimit;
     }
 
     /**
