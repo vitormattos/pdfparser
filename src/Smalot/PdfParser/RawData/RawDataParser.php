@@ -163,7 +163,11 @@ class RawDataParser
      */
     protected function decodeXref(string $pdfData, int $startxref, array $xref = [], array $visitedOffsets = []): array
     {
-        $startxref += 4; // 4 is the length of the word 'xref'
+        // Some malformed files omit the literal `xref` keyword and start directly with
+        // subsection rows (`0 19 ...`). In that case, parse from the given offset.
+        if (strpos($pdfData, 'xref', $startxref) == $startxref) {
+            $startxref += 4; // 4 is the length of the word 'xref'
+        }
         // skip initial white space chars
         $offset = $startxref + strspn($pdfData, $this->config->getPdfWhitespaces(), $startxref);
         // initialize object number
@@ -1035,31 +1039,58 @@ class RawDataParser
         }
 
         if ($startxref > \strlen($pdfData)) {
-            throw new \Exception('Unable to find xref (PDF corrupted?)');
-        }
-
-        // Some malformed files point startxref a few bytes after the xref keyword.
-        $nearXrefWindowStart = max(0, $startxref - 64);
-        $nearXrefWindowLength = $startxref - $nearXrefWindowStart + 8;
-        if ($nearXrefWindowLength > 0) {
-            $nearXrefChunk = substr($pdfData, $nearXrefWindowStart, $nearXrefWindowLength);
-            $nearXrefPos = strrpos($nearXrefChunk, 'xref');
-            if (false !== $nearXrefPos) {
-                $nearXrefOffset = $nearXrefWindowStart + $nearXrefPos;
-                if ($nearXrefOffset <= $startxref && preg_match('/xref[\x09\x0a\x0c\x0d\x20]/', substr($pdfData, $nearXrefOffset, 5)) > 0) {
-                    $startxref = $nearXrefOffset;
+            // Some malformed files contain an invalid startxref value.
+            // Try to recover by finding the last xref subsection header before trailer.
+            $trailerPos = strrpos($pdfData, 'trailer');
+            if (false !== $trailerPos) {
+                $searchStart = max(0, $trailerPos - 8192);
+                $searchChunk = substr($pdfData, $searchStart, $trailerPos - $searchStart);
+                if (
+                    preg_match_all(
+                        '/(?:^|[\r\n])([0-9]+[\x20]+[0-9]+)[\x20]*[\r\n]/',
+                        $searchChunk,
+                        $subsectionMatches,
+                        \PREG_OFFSET_CAPTURE
+                    ) > 0
+                ) {
+                    $lastSubsection = $subsectionMatches[1][\count($subsectionMatches[1]) - 1][1];
+                    $startxref = $searchStart + $lastSubsection;
                 }
             }
+
+            if ($startxref > \strlen($pdfData)) {
+                throw new \Exception('Unable to find xref (PDF corrupted?)');
+            }
         }
+
         // Some files point startxref to the whitespace right before the xref keyword or stream object.
         $startxrefOffset = $startxref + strspn($pdfData, $this->config->getPdfWhitespaces(), $startxref);
         // Be tolerant if startxref points one byte into the xref keyword ("ref").
         if ($startxrefOffset > 0 && strpos($pdfData, 'xref', $startxrefOffset - 1) == $startxrefOffset - 1) {
             --$startxrefOffset;
         }
+        // Some files point startxref to the whitespace right before the xref keyword or stream object.
+        // Some malformed files point startxref a few bytes after the xref keyword.
+        $nearXrefWindowStart = max(0, $startxrefOffset - 64);
+        $nearXrefWindowLength = $startxrefOffset - $nearXrefWindowStart + 8;
+        if ($nearXrefWindowLength > 0) {
+            $nearXrefChunk = substr($pdfData, $nearXrefWindowStart, $nearXrefWindowLength);
+            $nearXrefPos = strrpos($nearXrefChunk, 'xref');
+            if (false !== $nearXrefPos) {
+                $nearXrefOffset = $nearXrefWindowStart + $nearXrefPos;
+                if ($nearXrefOffset <= $startxrefOffset && preg_match('/xref[\x09\x0a\x0c\x0d\x20]/', substr($pdfData, $nearXrefOffset, 5)) > 0) {
+                    $startxrefOffset = $nearXrefOffset;
+                }
+            }
+        }
+
+        $xrefSubsectionAtOffset = preg_match(
+            '/[0-9]+[\x20]+[0-9]+[\x20]*[\r\n]/A',
+            substr($pdfData, $startxrefOffset, 48)
+        ) > 0;
 
         // check xref position
-        if (strpos($pdfData, 'xref', $startxrefOffset) == $startxrefOffset) {
+        if (strpos($pdfData, 'xref', $startxrefOffset) == $startxrefOffset || $xrefSubsectionAtOffset) {
             // Cross-Reference
             $xref = $this->decodeXref($pdfData, $startxrefOffset, $xref, $visitedOffsets);
         } else {

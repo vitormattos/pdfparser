@@ -358,4 +358,11 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(3, $document->getPages());
     }
+
+    public function testParseFileWithXrefTableMissingXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest807-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
