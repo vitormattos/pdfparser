@@ -36,7 +36,6 @@
 namespace PHPUnitTests\Integration;
 
 use PHPUnitTests\TestCase;
-use Smalot\PdfParser\Document;
 use Smalot\PdfParser\Parser;
 
 /**
@@ -127,6 +126,23 @@ class DocumentIssueFocusTest extends TestCase
     public function testParseFileWithCompressedObjRefInXrefStream(): void
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestInvalidObjectReference.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenStartxrefPointsToLeadingWhitespaceInVeraPdfFixture(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-vera.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    /**
+     * @see https://github.com/smalot/pdfparser/pull/797
+     */
+    public function testParseFileWithCompressedXrefObjectFromPdfJsCorpus(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-pdf.js.pdf');
 
         self::assertCount(1, $document->getPages());
     }
