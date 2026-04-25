@@ -1030,14 +1030,14 @@ class RawDataParser
                 // No startxref stanza, but caller points to an xref stream object.
                 $startxref = $bumpOffset;
             } else {
-            // No valid startxref table was found. Try to recover from nearby xref data
-            // or reconstruct a minimal xref from object headers plus trailer metadata.
-            $recoveredXref = $this->recoverXrefWithoutStartxref($pdfData);
-            if (!empty($recoveredXref)) {
-                return $recoveredXref;
-            }
+                // No valid startxref table was found. Try to recover from nearby xref data
+                // or reconstruct a minimal xref from object headers plus trailer metadata.
+                $recoveredXref = $this->recoverXrefWithoutStartxref($pdfData);
+                if (!empty($recoveredXref)) {
+                    return $recoveredXref;
+                }
 
-            throw new \Exception('Unable to find startxref');
+                throw new \Exception('Unable to find startxref');
             }
         } elseif (0 == $offset) {
             // Use the last startxref in the document
