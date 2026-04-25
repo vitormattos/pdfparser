@@ -208,7 +208,7 @@ class DocumentIssueFocusTest extends TestCase
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest806-pdf.js.pdf');
 
-        self::assertCount(1, $document->getPages());
+        self::assertCount(2, $document->getPages());
     }
 
     public function testParseFileWithoutNumericStartxrefValue(): void
