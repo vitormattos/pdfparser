@@ -620,8 +620,8 @@ class RawDataParser
         if (0 == preg_match($objHeaderPattern, substr($pdfData, $offset, 33), $headerMatches)) {
             // Some malformed files have slightly inaccurate xref offsets.
             // Try to recover by locating the expected object header nearby.
-            $searchStart = max(0, $offset - 64);
-            $searchLen = 192;
+            $searchStart = max(0, $offset - 128);
+            $searchLen = 256;
             if (
                 preg_match(
                     $objHeaderPattern,
