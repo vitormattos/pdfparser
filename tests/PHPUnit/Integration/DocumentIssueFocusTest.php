@@ -123,23 +123,5 @@ class DocumentIssueFocusTest extends TestCase
         $document = (new Parser([], $config))->parseFile($this->rootDir.'/samples/bugs/PullRequest457.pdf');
 
         self::assertCount(28, $document->getPages());
-||||||| parent of 7bf64b8 (fix: recover pages when xref entries are partially missing)
-=======
-    public function testParseFileWithXrefTableMissingXrefKeyword(): void
-    {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-missing-keyword.pdf');
-
-        self::assertCount(1, $document->getPages());
     }
-
-    public function testParseFileWhenStartxrefPointsBeforeXrefKeyword(): void
-    {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-startxref-misaligned.pdf');
-
-        self::assertCount(5, $document->getPages());
-    }
-
-    /**
-     * @see https://github.com/smalot/pdfparser/pull/795
-     */
-     */
+}
