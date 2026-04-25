@@ -318,33 +318,27 @@ class RawDataParserTest extends TestCase
     }
 
     /**
-     * Ensure parser resolves compressed object references from xref streams.
-     *
-     * @see https://github.com/smalot/pdfparser/pull/796
+     * @return iterable<string, array{string}>
      */
-    public function testParseFileWithCompressedObjRefInXrefStream(): void
+    public static function provideRawDataRegressionFixtures(): iterable
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequestInvalidObjectReference.pdf');
-
-        self::assertCount(1, $document->getPages());
+        yield 'pr796 invalid-object-reference / pr798 startxref-whitespace equivalent' => [
+            'rawdata/PullRequestInvalidObjectReference.pdf',
+        ];
+        yield 'pr797 vera / pr798 pullrequest794 equivalent' => [
+            'rawdata/PullRequest797-vera.pdf',
+        ];
+        yield 'pr797 pdf.js xref stream fixture' => [
+            'rawdata/PullRequest797-pdf.js.pdf',
+        ];
     }
 
     /**
-     * @see https://github.com/smalot/pdfparser/pull/797
+     * @dataProvider provideRawDataRegressionFixtures
      */
-    public function testParseFileWhenStartxrefPointsToLeadingWhitespaceInVeraPdfFixture(): void
+    public function testParseFileWithRawDataRegressionFixture(string $fixturePath): void
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-vera.pdf');
-
-        self::assertCount(1, $document->getPages());
-    }
-
-    /**
-     * @see https://github.com/smalot/pdfparser/pull/797
-     */
-    public function testParseFileWithCompressedXrefObjectFromPdfJsCorpus(): void
-    {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest797-pdf.js.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/'.$fixturePath);
 
         self::assertCount(1, $document->getPages());
     }
