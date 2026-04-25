@@ -214,16 +214,16 @@ class RawDataParser
                 // get only the last updated version
                 $xref['trailer'] = [];
                 // parse trailer_data
-                if (preg_match('/\/Size[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Size[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['size'] = (int) $matches[1];
                 }
-                if (preg_match('/\/Root[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Root[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['root'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
-                if (preg_match('/\/Encrypt[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Encrypt[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['encrypt'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
-                if (preg_match('/\/Info[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Info[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['info'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
                 if (preg_match('/ID[\s]*[\[][\s]*[<]([^>]*)[>][\s]*[<]([^>]*)[>]/i', $trailer_data, $matches) > 0) {
@@ -1084,6 +1084,16 @@ class RawDataParser
             }
         }
 
+        // Some malformed files point startxref to the bytes right before the xref keyword.
+        // Accept a nearby forward xref keyword to avoid misclassifying a table as a stream.
+        $nextXrefPos = strpos($pdfData, 'xref', $startxrefOffset);
+        if (
+            false !== $nextXrefPos
+            && $nextXrefPos <= ($startxrefOffset + 64)
+            && preg_match('/xref[\x09\x0a\x0c\x0d\x20]/', substr($pdfData, $nextXrefPos, 5)) > 0
+        ) {
+            $startxrefOffset = $nextXrefPos;
+        }
         $xrefSubsectionAtOffset = preg_match(
             '/[0-9]+[\x20]+[0-9]+[\x20]*[\r\n]/A',
             substr($pdfData, $startxrefOffset, 48)

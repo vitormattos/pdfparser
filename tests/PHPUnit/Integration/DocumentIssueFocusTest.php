@@ -112,6 +112,19 @@ class DocumentIssueFocusTest extends TestCase
         $testSubject = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ŁŒŠŸŽıłœšž';
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
+    public function testParseFileWithXrefTableMissingXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-missing-keyword.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenStartxrefPointsBeforeXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-startxref-misaligned.pdf');
+
+        self::assertCount(5, $document->getPages());
+    }
 
     /**
      * @see https://github.com/smalot/pdfparser/pull/795
@@ -194,13 +207,6 @@ class DocumentIssueFocusTest extends TestCase
     public function testParseFileWithCyclicPagesTree(): void
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest806-pdf.js.pdf');
-
-        self::assertCount(1, $document->getPages());
-    }
-
-    public function testParseFileWithXrefTableMissingXrefKeyword(): void
-    {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdf.js.pdf');
 
         self::assertCount(1, $document->getPages());
     }
