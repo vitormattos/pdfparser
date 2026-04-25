@@ -372,4 +372,11 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(5, $document->getPages());
     }
+
+    public function testParseFileWithoutStartxrefButWithTrailerRoot(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest809-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
