@@ -361,8 +361,15 @@ class RawDataParserTest extends TestCase
 
     public function testParseFileWithXrefTableMissingXrefKeyword(): void
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest807-pdf.js.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest807-pdfjs-xref-missing-keyword.pdf');
 
         self::assertCount(1, $document->getPages());
+    }
+
+    public function testParseFileWhenStartxrefPointsBeforeXrefKeyword(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest807-pdfjs-xref-startxref-misaligned.pdf');
+
+        self::assertCount(5, $document->getPages());
     }
 }
