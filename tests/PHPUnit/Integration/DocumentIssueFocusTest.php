@@ -111,17 +111,11 @@ class DocumentIssueFocusTest extends TestCase
         $testSubject = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ŁŒŠŸŽıłœšž';
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
-    public function testParseFileWithXrefTableMissingXrefKeyword(): void
+
+    public function testParseFileWithoutStartxrefButWithTrailerRoot(): void
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-missing-keyword.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest809-pdf.js.pdf');
 
         self::assertCount(1, $document->getPages());
-    }
-
-    public function testParseFileWhenStartxrefPointsBeforeXrefKeyword(): void
-    {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-startxref-misaligned.pdf');
-
-        self::assertCount(5, $document->getPages());
     }
 }
