@@ -396,4 +396,11 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    public function testRecoverPagesWhenXrefEntriesArePartiallyMissing(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest813-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
