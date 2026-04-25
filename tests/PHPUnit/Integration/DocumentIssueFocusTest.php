@@ -112,9 +112,14 @@ class DocumentIssueFocusTest extends TestCase
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
 
-    public function testParseFileWhenStartxrefPointsNearXrefKeyword(): void
+    /**
+     * Ensures malformed xref streams with missing /Root xref entries still recover pages.
+     *
+     * @see https://github.com/mozilla/pdf.js/blob/master/test/pdfs/issue18986.pdf
+     */
+    public function testMalformedXrefStreamMissingRootEntryStillParsesPage(): void
     {
-        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest794.pdf');
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest812-pdf.js.pdf');
 
         self::assertCount(1, $document->getPages());
     }
