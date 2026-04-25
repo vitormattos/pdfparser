@@ -112,7 +112,6 @@ class DocumentIssueFocusTest extends TestCase
         $testSubject = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ŁŒŠŸŽıłœšž';
         self::assertStringContainsString($testSubject, $details['Subject']);
     }
-<<<<<<< HEAD
     public function testParseFileWithXrefTableMissingXrefKeyword(): void
     {
         $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/PullRequest807-pdfjs-xref-missing-keyword.pdf');
