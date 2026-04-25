@@ -386,4 +386,14 @@ class RawDataParserTest extends TestCase
 
         self::assertCount(1, $document->getPages());
     }
+
+    /**
+     * Ensures malformed xref streams with missing /Root xref entries still recover pages.
+     */
+    public function testMalformedXrefStreamMissingRootEntryStillParsesPage(): void
+    {
+        $document = (new Parser())->parseFile($this->rootDir.'/samples/bugs/rawdata/PullRequest812-pdf.js.pdf');
+
+        self::assertCount(1, $document->getPages());
+    }
 }
