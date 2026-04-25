@@ -38,6 +38,7 @@ namespace PHPUnitTests\Integration;
 use PHPUnitTests\TestCase;
 use Smalot\PdfParser\Document;
 use Smalot\PdfParser\Header;
+use Smalot\PdfParser\Parser;
 use Smalot\PdfParser\Page;
 use Smalot\PdfParser\Pages;
 use Smalot\PdfParser\PDFObject;
