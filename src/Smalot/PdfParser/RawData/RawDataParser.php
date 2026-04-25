@@ -173,7 +173,7 @@ class RawDataParser
         // initialize object number
         $obj_num = 0;
         // search for cross-reference entries or subsection
-        while (preg_match('/([0-9]+)[\x20]+([0-9]+)[\x20]*([nf]?)(\r\n|[\x20]*[\r\n])/', $pdfData, $matches, \PREG_OFFSET_CAPTURE, $offset) > 0) {
+        while (preg_match('/([0-9]+)[\x20]([0-9]+)[\x20]?([nf]?)(\r\n|[\x20]?[\r\n])/', $pdfData, $matches, \PREG_OFFSET_CAPTURE, $offset) > 0) {
             if ($matches[0][1] != $offset) {
                 // we are on another section
                 break;
@@ -202,16 +202,16 @@ class RawDataParser
                 // get only the last updated version
                 $xref['trailer'] = [];
                 // parse trailer_data
-                if (preg_match('/\/Size[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Size[\s]+([0-9]+)/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['size'] = (int) $matches[1];
                 }
-                if (preg_match('/\/Root[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Root[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['root'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
-                if (preg_match('/\/Encrypt[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Encrypt[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['encrypt'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
-                if (preg_match('/\/Info[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
+                if (preg_match('/Info[\s]+([0-9]+)[\s]+([0-9]+)[\s]+R/i', $trailer_data, $matches) > 0) {
                     $xref['trailer']['info'] = (int) $matches[1].'_'.(int) $matches[2];
                 }
                 if (preg_match('/ID[\s]*[\[][\s]*[<]([^>]*)[>][\s]*[<]([^>]*)[>]/i', $trailer_data, $matches) > 0) {
