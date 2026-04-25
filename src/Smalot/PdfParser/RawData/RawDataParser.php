@@ -599,7 +599,7 @@ class RawDataParser
 
         if (
             preg_match_all(
-                '/(?:^|[\r\n])([0-9]+)[\x09\x0a\x0c\x0d\x20]+([0-9]+)[\x09\x0a\x0c\x0d\x20]+obj(?=[\x09\x0a\x0c\x0d\x20<])/i',
+                '/(?:^|[\r\n])(?:%[\x09\x0a\x0c\x0d\x20]*)?([0-9]+)[\x09\x0a\x0c\x0d\x20]+([0-9]+)[\x09\x0a\x0c\x0d\x20]+obj(?=[\x09\x0a\x0c\x0d\x20<])/i',
                 $pdfData,
                 $matches,
                 \PREG_OFFSET_CAPTURE
@@ -613,11 +613,45 @@ class RawDataParser
 
                 if (!isset($xref['xref'][$objRef])) {
                     $xref['xref'][$objRef] = $offset;
+                } else {
+                    $currentOffset = (int) $xref['xref'][$objRef];
+                    if (!$this->isXrefOffsetUsableForObjectRef($pdfData, $objRef, $currentOffset)) {
+                        $xref['xref'][$objRef] = $offset;
+                    }
                 }
             }
         }
 
         return $xref;
+    }
+
+    private function isXrefOffsetUsableForObjectRef(string $pdfData, string $objRef, int $offset): bool
+    {
+        if ($offset < 0) {
+            return false;
+        }
+
+        $objRefArr = explode('_', $objRef);
+        if (2 !== \count($objRefArr)) {
+            return false;
+        }
+
+        $objHeaderPattern = $this->getObjectHeaderPattern($objRefArr);
+
+        // Check exact offset first (ignoring leading whitespace/zeros).
+        $candidateOffset = $offset;
+        $candidateOffset += strspn($pdfData, $this->config->getPdfWhitespaces(), $candidateOffset);
+        $candidateOffset += strspn($pdfData, '0', $candidateOffset);
+        if (preg_match($objHeaderPattern, substr($pdfData, $candidateOffset, 64)) > 0) {
+            return true;
+        }
+
+        // Accept small xref inaccuracies where header is nearby.
+        $searchStart = max(0, $offset - 128);
+        return preg_match(
+            $objHeaderPattern,
+            substr($pdfData, $searchStart, 256)
+        ) > 0;
     }
 
     /**
@@ -1323,7 +1357,12 @@ class RawDataParser
         }
 
         $rootObjectRef = $xref['trailer']['root'] ?? null;
-        if (\is_string($rootObjectRef) && !isset($xref['xref'][$rootObjectRef])) {
+        $trailerSize = isset($xref['trailer']['size']) ? (int) $xref['trailer']['size'] : 0;
+        $xrefEntryCount = isset($xref['xref']) && \is_array($xref['xref']) ? \count($xref['xref']) : 0;
+        if (
+            (\is_string($rootObjectRef) && !isset($xref['xref'][$rootObjectRef]))
+            || ($trailerSize > 0 && $xrefEntryCount > 0 && $xrefEntryCount < $trailerSize)
+        ) {
             $xref = $this->mergeMissingXrefOffsetsFromObjectHeaders($pdfData, $xref);
         }
 
