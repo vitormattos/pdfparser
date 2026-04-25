@@ -1077,7 +1077,6 @@ class RawDataParser
             }
         }
 
-<<<<<<< HEAD
         // Some files point startxref to the whitespace right before the xref keyword or stream object.
         $startxrefOffset = $startxref + strspn($pdfData, $this->config->getPdfWhitespaces(), $startxref);
         // Be tolerant if startxref points one byte into the xref keyword ("ref").
