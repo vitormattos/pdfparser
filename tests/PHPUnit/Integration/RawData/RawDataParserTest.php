@@ -133,6 +133,19 @@ class RawDataParserTest extends TestCase
         );
     }
 
+
+        /**
+         * @see https://github.com/mozilla/pdf.js/blob/master/test/pdfs/xref_command_missing.pdf
+         */
+        public function testParseRawDataIssuePullRequest815XrefCommandMissing(): void
+        {
+            $filename = $this->rootDir.'/samples/bugs/rawdata/PullRequest815-xref-command-missing.pdf';
+
+            $parser = $this->getParserInstance();
+            $document = $parser->parseFile($filename);
+
+            $this->assertCount(1, $document->getPages());
+        }
     /**
      * Tests buggy behavior of decodeXrefStream.
      *

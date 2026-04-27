@@ -1182,6 +1182,11 @@ class RawDataParser
             }
         }
         if (empty($xref)) {
+            $recoveredXref = $this->recoverXrefWithoutStartxref($pdfData);
+            if (!empty($recoveredXref)) {
+                return $recoveredXref;
+            }
+
             throw new \Exception('Unable to find xref');
         }
 
