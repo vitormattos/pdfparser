@@ -71,43 +71,4 @@ abstract class TestCase extends PHPTestCase
     {
         return new Parser([], $config);
     }
-
-    /**
-     * Extract page dimensions (width, height) from a Page object.
-     * Returns array ['w' => width, 'h' => height] or null if dimensions cannot be determined.
-     *
-     * @param \Smalot\PdfParser\Page $page
-     * @return array|null
-     */
-    protected function getPageDimensions($page): ?array
-    {
-        try {
-            $details = $page->getDetails();
-            if (isset($details['MediaBox'])) {
-                $box = $details['MediaBox'];
-                if (is_array($box) && count($box) >= 4) {
-                    return [
-                        'w' => (float)$box[2],
-                        'h' => (float)$box[3],
-                    ];
-                }
-            }
-            return null;
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Assert that a page has valid dimensions (both width and height > 0).
-     *
-     * @param \Smalot\PdfParser\Page $page
-     */
-    protected function assertPageHasValidDimensions($page): void
-    {
-        $dims = $this->getPageDimensions($page);
-        $this->assertNotNull($dims, 'Page dimensions should be extractable (MediaBox)');
-        $this->assertGreaterThan(0, $dims['w'], 'Page width should be > 0');
-        $this->assertGreaterThan(0, $dims['h'], 'Page height should be > 0');
-    }
 }
