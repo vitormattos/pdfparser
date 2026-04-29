@@ -250,7 +250,35 @@ final class DatasetAnalyzer
     /** @return array{w:float,h:float}|null */
     private function extractPageDimension(object $page): ?array
     {
-        $details = $page->getDetails();
+        // Prefer direct MediaBox access to avoid deep getDetails() recursion on malformed font trees.
+        if (method_exists($page, 'get')) {
+            try {
+                $mediaBox = $page->get('MediaBox');
+                if (is_object($mediaBox) && method_exists($mediaBox, 'getContent')) {
+                    $content = $mediaBox->getContent();
+                    if (
+                        is_array($content)
+                        && count($content) >= 4
+                        && is_numeric($content[2])
+                        && is_numeric($content[3])
+                    ) {
+                        return [
+                            'w' => (float) $content[2],
+                            'h' => (float) $content[3],
+                        ];
+                    }
+                }
+            } catch (Throwable $e) {
+                // Fall back to details extraction below.
+            }
+        }
+
+        try {
+            $details = $page->getDetails();
+        } catch (Throwable $e) {
+            return null;
+        }
+
         if (!isset($details['MediaBox']) || !is_array($details['MediaBox']) || count($details['MediaBox']) < 4) {
             return null;
         }
@@ -381,13 +409,32 @@ if (is_string($workerFile) && $workerFile !== '') {
     $dimensions = [];
 
     foreach ($pages as $page) {
-        $details = $page->getDetails();
-        if (isset($details['MediaBox']) && is_array($details['MediaBox']) && count($details['MediaBox']) >= 4
-            && is_numeric($details['MediaBox'][2]) && is_numeric($details['MediaBox'][3])) {
-            $dimensions[] = [
-                'w' => (float) $details['MediaBox'][2],
-                'h' => (float) $details['MediaBox'][3],
-            ];
+        try {
+            $mediaBox = method_exists($page, 'get') ? $page->get('MediaBox') : null;
+            $content = is_object($mediaBox) && method_exists($mediaBox, 'getContent') ? $mediaBox->getContent() : null;
+            if (
+                is_array($content)
+                && count($content) >= 4
+                && is_numeric($content[2])
+                && is_numeric($content[3])
+            ) {
+                $dimensions[] = [
+                    'w' => (float) $content[2],
+                    'h' => (float) $content[3],
+                ];
+                continue;
+            }
+
+            $details = $page->getDetails();
+            if (isset($details['MediaBox']) && is_array($details['MediaBox']) && count($details['MediaBox']) >= 4
+                && is_numeric($details['MediaBox'][2]) && is_numeric($details['MediaBox'][3])) {
+                $dimensions[] = [
+                    'w' => (float) $details['MediaBox'][2],
+                    'h' => (float) $details['MediaBox'][3],
+                ];
+            }
+        } catch (Throwable $e) {
+            // Ignore dimension extraction failures for individual pages in worker mode.
         }
     }
 
