@@ -15,6 +15,7 @@ if (!class_exists('Smalot\\PdfParser\\Parser') && file_exists(__DIR__.'/../alt_a
 }
 
 use Smalot\PdfParser\Parser;
+use Smalot\PdfParser\Config;
 
 final class DatasetAnalyzer
 {
@@ -56,6 +57,8 @@ final class DatasetAnalyzer
             'total_files' => 0,
             'parser_success' => 0,
             'parser_failed' => 0,
+            'parser_retried_ignore_encryption' => 0,
+            'parser_recovered_ignore_encryption' => 0,
             'pdfinfo_available' => $this->pdfinfoAvailable,
             'pdfinfo_comparable_files' => 0,
             'page_match' => 0,
@@ -137,6 +140,7 @@ final class DatasetAnalyzer
             'sha256' => hash_file('sha256', $filePath),
             'status' => 'parser_failed',
             'error' => null,
+            'recovered_with_ignore_encryption' => false,
             'parser_pages' => null,
             'parser_dimensions' => [],
             'parser_dimensions_count' => 0,
@@ -154,10 +158,26 @@ final class DatasetAnalyzer
         }
 
         try {
-            $parser = $this->extractWithWorker($filePath);
-            if ($parser === null) {
-                throw new RuntimeException('Worker did not return parser payload');
+            $firstAttempt = $this->extractWithWorker($filePath);
+            $parser = $firstAttempt['payload'];
+
+            if ($parser === null && $this->isSecuredWithoutPasswordMarker($firstAttempt['error'])) {
+                $this->summary['parser_retried_ignore_encryption']++;
+                $retryAttempt = $this->extractWithWorker($filePath, true);
+                $parser = $retryAttempt['payload'];
+
+                if ($parser !== null) {
+                    $record['recovered_with_ignore_encryption'] = true;
+                    $this->summary['parser_recovered_ignore_encryption']++;
+                } else {
+                    $record['error'] = $retryAttempt['error'];
+                }
             }
+
+            if ($parser === null) {
+                throw new RuntimeException($record['error'] ?? $firstAttempt['error'] ?? 'Worker did not return parser payload');
+            }
+
             $record['status'] = 'ok';
             $record['parser_pages'] = $parser['pages'];
             $record['parser_dimensions'] = $parser['dimensions'];
@@ -189,21 +209,24 @@ final class DatasetAnalyzer
                 }
             }
         } catch (Throwable $e) {
-            $record['error'] = $e->getMessage();
+            if ($record['error'] === null) {
+                $record['error'] = $e->getMessage();
+            }
             $this->summary['parser_failed']++;
         }
 
         return $record;
     }
 
-    /** @return array{pages:int,dimensions:list<array{w:float,h:float}>}|null */
-    private function extractWithWorker(string $filePath): ?array
+    /** @return array{payload:array{pages:int,dimensions:list<array{w:float,h:float}>}|null,error:string|null} */
+    private function extractWithWorker(string $filePath, bool $ignoreEncryption = false): array
     {
         $command = sprintf(
-            '%s -d memory_limit=768M %s --worker-file=%s',
+            '%s -d memory_limit=768M %s --worker-file=%s%s',
             escapeshellarg(PHP_BINARY),
             escapeshellarg($this->scriptPath),
-            escapeshellarg($filePath)
+            escapeshellarg($filePath),
+            $ignoreEncryption ? ' --worker-ignore-encryption=1' : ''
         );
 
         $output = [];
@@ -211,20 +234,38 @@ final class DatasetAnalyzer
         exec($command, $output, $exitCode);
 
         if ($exitCode !== 0 || $output === []) {
-            return null;
+            return [
+                'payload' => null,
+                'error' => trim(implode("\n", $output)) ?: 'Worker execution failed',
+            ];
         }
 
         $line = implode("\n", $output);
         /** @var mixed $decoded */
         $decoded = json_decode($line, true);
         if (!is_array($decoded) || !isset($decoded['pages']) || !isset($decoded['dimensions'])) {
-            return null;
+            return [
+                'payload' => null,
+                'error' => trim($line) !== '' ? trim($line) : 'Invalid worker payload',
+            ];
         }
 
         return [
-            'pages' => (int) $decoded['pages'],
-            'dimensions' => is_array($decoded['dimensions']) ? $decoded['dimensions'] : [],
+            'payload' => [
+                'pages' => (int) $decoded['pages'],
+                'dimensions' => is_array($decoded['dimensions']) ? $decoded['dimensions'] : [],
+            ],
+            'error' => null,
         ];
+    }
+
+    private function isSecuredWithoutPasswordMarker(?string $error): bool
+    {
+        if (!is_string($error) || $error === '') {
+            return false;
+        }
+
+        return stripos($error, 'Secured pdf file are currently not supported.') !== false;
     }
 
     /** @return array{pages:int,dimensions:list<array{w:float,h:float}>} */
@@ -387,6 +428,8 @@ final class DatasetAnalyzer
         echo "Total files: {$this->summary['total_files']}\n";
         echo "Parser success: {$this->summary['parser_success']}\n";
         echo "Parser failed: {$this->summary['parser_failed']}\n";
+        echo "Parser retries (ignore encryption): {$this->summary['parser_retried_ignore_encryption']}\n";
+        echo "Parser recoveries (ignore encryption): {$this->summary['parser_recovered_ignore_encryption']}\n";
         echo "Page matches (vs pdfinfo): {$this->summary['page_match']}\n";
         echo "Page mismatches (vs pdfinfo): {$this->summary['page_mismatch']}\n";
         echo "Dimension matches (vs pdfinfo): {$this->summary['dimension_match']}\n";
@@ -399,11 +442,17 @@ final class DatasetAnalyzer
 }
 
 /** @var array<string,string|false> $options */
-$options = getopt('', ['scope::', 'limit::', 'worker-file:']);
+$options = getopt('', ['scope::', 'limit::', 'worker-file:', 'worker-ignore-encryption::']);
 $workerFile = $options['worker-file'] ?? null;
 
 if (is_string($workerFile) && $workerFile !== '') {
-    $parser = new Parser();
+    $ignoreEncryption = array_key_exists('worker-ignore-encryption', $options);
+    $config = new Config();
+    if ($ignoreEncryption) {
+        $config->setIgnoreEncryption(true);
+    }
+
+    $parser = new Parser([], $config);
     $document = $parser->parseFile($workerFile);
     $pages = $document->getPages();
     $dimensions = [];
